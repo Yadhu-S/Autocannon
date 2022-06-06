@@ -15,6 +15,8 @@
 #define minBatteryVoltage 10.4 // Going beyond 9.6 will damange LiPo battery(3S)
 #define maxBatteryVoltage 12.6
 
+#define bldcSleepTime 30000 // BLDC auto shut off time in milliseconds
+
 #include <Servo.h>
 #include <Arduino.h>
 #include <U8x8lib.h>
@@ -26,6 +28,7 @@ Servo ESC1;
 
 float batteryVoltage;
 int powerButtonPressedAt;
+unsigned long startTime;
 
 void arm() {
 	setSpeed(initialArmingSpeed); // Sets speed variable
@@ -39,7 +42,7 @@ void setSpeed(int speed) {
 }
 
 float getBatteryVoltage(){	
-	return ((analogRead(voltageReadPin)* 5.98) / 1024.0)/ (7420.0/(29700.0+7420.0));
+	return ((analogRead(voltageReadPin)* 6.02) / 1024.0)/ (6560.0/(26200.0+6560.0));
 }
 
 float getBatteryPercentage(float batteryVoltage){
@@ -84,10 +87,27 @@ void setup() {
 
 	u8x8.clear();
 	u8x8.print(F("ARMED"));
+	startTime = millis();
 
 }
 
 void loop() {
+
+	if ((millis()- startTime) > bldcSleepTime) {
+		digitalWrite(bldcEnablePin , LOW);
+		u8x8.clear();
+		u8x8.print(F("SLEEP"));
+		while( digitalRead(bldcbldcMotorTriggerPin) != LOW){
+		}
+		startTime=millis();
+		u8x8.clear();
+		u8x8.print(F("POWERING UP..."));
+		digitalWrite(bldcEnablePin , HIGH);
+		arm();	
+		u8x8.clear();
+		u8x8.print(F("ARMED"));
+	}
+
 	batteryVoltage = getBatteryVoltage();
 	while (batteryVoltage <= minBatteryVoltage ){
 		u8x8.clear();
@@ -114,6 +134,7 @@ void loop() {
 	// //Serial.println(speed);
 
 	if (digitalRead(bldcbldcMotorTriggerPin) == LOW) {
+		startTime = millis();
 		setSpeed(83);
 		//Serial.println("Motor_spin");
 	} else {
